@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-services
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: clearml-agent-services
+          env:
+            - name: CLEARML_AGENT_QUEUE
+              value: default
+      volumes:
+        - name: agent-config
+          persistentVolumeClaim:
+            claimName: agent-config-default

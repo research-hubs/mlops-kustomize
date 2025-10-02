@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress-dynamic
+  namespace: prod-ingress-controller
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`traefik.prod.local`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: traefik
+          port: 9000
+  tls: {}

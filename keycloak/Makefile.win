@@ -1,0 +1,70 @@
+# Keycloak - Kustomize Makefile
+# Usage examples:
+#   make deploy ENV=development
+#   make status ENV=production
+#   make delete ENV=base
+
+# Environment selection: base | development | production
+ENV ?= development
+
+# Validate ENV
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+# Resolve kustomize directory and namespace by ENV
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := keycloak
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-keycloak
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-keycloak
+endif
+
+.PHONY: help deploy delete status build diff logs restart
+
+help:
+	@echo "Keycloak (Kustomize)"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | logs | restart"
+
+build: ## Render manifests
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy: ## Apply manifests for selected ENV
+	@echo "Applying Keycloak for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+
+delete: ## Fully remove Keycloak resources for selected ENV
+	@echo "Deleting Keycloak for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+	@echo "Extra cleanup in namespace"
+	-@kubectl delete deploy,svc,cm,pvc -n $(NAMESPACE) --ignore-not-found=true
+	@echo "Finally removing namespace $(NAMESPACE)"
+	-@kubectl delete namespace $(NAMESPACE) --ignore-not-found=true
+
+status: ## Show resources in target namespace
+	@echo "Namespace: $(NAMESPACE)"
+	-@kubectl get deploy,sts,ds,po,svc,configmap -n $(NAMESPACE) || true
+
+diff: ## Show diff against live cluster
+	-@kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+logs: ## Show Keycloak logs
+	@echo "Showing Keycloak logs in $(NAMESPACE)"
+	kubectl logs -n $(NAMESPACE) -l app.kubernetes.io/name=keycloak -f
+
+restart:
+	@echo "Restarting Keycloak deployments in $(NAMESPACE) (ENV=$(ENV))"
+	-@kubectl -n $(NAMESPACE) rollout restart deployment -l app.kubernetes.io/name=keycloak || true
+	-@kubectl -n $(NAMESPACE) rollout restart deployment -l app.kubernetes.io/name=keycloak-db || true
+	@echo "Restart issued. Use 'make status ENV=$(ENV)' to monitor."

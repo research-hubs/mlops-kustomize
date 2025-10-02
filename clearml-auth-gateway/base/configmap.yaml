@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-gateway-code
+  labels:
+    app.kubernetes.io/name: auth-gateway
+    app.kubernetes.io/component: auth-gateway
+data:
+  main.py: |
+    from fastapi import FastAPI, Request
+    from fastapi.responses import RedirectResponse, Response
+    import httpx
+    import logging
+    import os
+    import base64
+    import sys
+
+    app = FastAPI(title="ClearML Auth Gateway", version="1.0.0")
+    logger = logging.getLogger("auth-gateway")
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stdout,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
+    logger.setLevel(logging.INFO)
+
+    # Configuration
+    CLEARML_WEBSERVER_INTERNAL_URL = os.getenv("CLEARML_WEBSERVER_INTERNAL_URL", "http://webserver:8080")
+    CLEARML_WEBSERVER_EXTERNAL_URL = os.getenv("CLEARML_WEBSERVER_EXTERNAL_URL", "https://clearml.example.com/")
+    CLEARML_API_URL = f"{CLEARML_WEBSERVER_INTERNAL_URL}/api/v1.0"
+    COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN", ".example.com")
+    OAUTH2_PROXY_BASIC_AUTH_PASSWORD = os.getenv("OAUTH2_PROXY_BASIC_AUTH_PASSWORD", "gateway-basic-pass")
+
+    @app.get("/health")
+    async def health():
+        return {"status": "healthy"}
+
+    @app.get("/ready")
+    async def ready():
+        return {"status": "ready"}
+
+    def create_basic_auth_header(username: str, password: str) -> str:
+        """Create Basic Authentication header for ClearML API"""
+        credentials = f"{username}:{password}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        return f"Basic {encoded_credentials}"
+
+
+    async def login_to_clearml_api(username: str, password: str) -> str | None:
+        """Login to ClearML API and return token using Basic auth (ClearML)"""
+        try:
+            auth_header = create_basic_auth_header(username, password)
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{CLEARML_API_URL}/auth.login",
+                    headers={"Authorization": auth_header},
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    meta = result.get("meta", {})
+                    if meta.get("result_code") == 200:
+                        token = result.get("data", {}).get("token")
+                        if token:
+                            return token
+                    
+        except Exception as e:
+            logger.error(f"ClearML API login error: {e}")
+            
+        return None
+
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+    async def handle_all_paths(request: Request, path: str):
+        user_email = request.headers.get("x-forwarded-user")
+        user_name = request.headers.get("X-Forwarded-Preferred-Username")
+        user = user_name or user_email
+
+        # Login to ClearML using configured credentials (not user headers)
+        token = await login_to_clearml_api(user, user)
+        if not token:
+            logger.error("Failed to get ClearML token")
+            return RedirectResponse(url=CLEARML_WEBSERVER_EXTERNAL_URL)
+        
+        # Set cookie and redirect to main site
+        response = RedirectResponse(url=CLEARML_WEBSERVER_EXTERNAL_URL)
+        response.set_cookie(
+            key="clearml_token_basic",
+            value=token,
+            max_age=7*24*3600,  # 7 days
+            httponly=True,
+            secure=True,
+            samesite="Lax",
+            domain=COOKIE_DOMAIN
+        )
+        return response
+
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+
+  requirements.txt: |
+    fastapi==0.104.1
+    uvicorn[standard]==0.24.0
+    httpx==0.25.2

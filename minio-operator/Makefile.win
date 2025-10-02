@@ -1,0 +1,74 @@
+# MinIO Operator - Kustomize Makefile
+# Usage examples:
+#   make deploy ENV=development
+#   make status ENV=production
+#   make delete ENV=base
+
+# Environment selection: base | development | production
+ENV ?= development
+
+# Validate ENV
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+# Resolve kustomize directory and namespace by ENV
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := minio-operator
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-minio-operator
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-minio-operator
+endif
+
+.PHONY: help deploy delete status build diff pf-console restart
+
+help:
+	@echo "MinIO Operator (Kustomize)"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | pf-console | restart"
+
+build: ## Render manifests
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy: ## Apply manifests for selected ENV
+	@echo "Applying MinIO Operator for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+
+delete: ## Fully remove operator resources (cluster + namespace) for selected ENV
+	@echo "Deleting MinIO Operator for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+	@echo "Extra cleanup in namespace"
+	-@kubectl delete deploy,svc,cm,sa,role,rolebinding -n $(NAMESPACE) --ignore-not-found=true
+	@echo "Cleaning up cluster-scoped objects created by operator chart"
+	-@kubectl delete crd tenants.minio.min.io --ignore-not-found=true
+	-@kubectl delete crd policybindings.sts.min.io --ignore-not-found=true
+	-@kubectl delete clusterrole minio-operator-role --ignore-not-found=true
+	-@kubectl delete clusterrolebinding minio-operator-binding --ignore-not-found=true
+	@echo "Finally removing namespace $(NAMESPACE)"
+	-@kubectl delete namespace $(NAMESPACE) --ignore-not-found=true
+
+status: ## Show resources in target namespace
+	@echo "Namespace: $(NAMESPACE)"
+	-@kubectl get deploy,sts,ds,po,svc,configmap -n $(NAMESPACE) || true
+
+diff: ## Show diff against live cluster
+	-@kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+pf-console: ## Port-forward Operator Console to https://localhost:9090
+	@echo "Port-forwarding Operator Console in $(NAMESPACE) -> https://localhost:9090"
+	kubectl -n $(NAMESPACE) port-forward svc/console 9090:9090
+
+restart:
+	@echo "Restarting MinIO Operator deployment in $(NAMESPACE) (ENV=$(ENV))"
+	-@kubectl -n $(NAMESPACE) rollout restart deployment -l app.kubernetes.io/instance=minio-operator || true
+	@echo "Restart issued. Use 'make status ENV=$(ENV)' to monitor."

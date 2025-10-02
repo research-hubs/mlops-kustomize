@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: C:\Users\MSI\scoop\apps\kompose\current\kompose.exe convert -f docker-compose.yml -o k8s/
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: mongo
+  name: mongo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mongo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: C:\Users\MSI\scoop\apps\kompose\current\kompose.exe convert -f docker-compose.yml -o k8s/
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: mongo
+    spec:
+      containers:
+        - args:
+            - --setParameter
+            - internalQueryMaxBlockingSortMemoryUsageBytes=196100200
+          image: mongo:6.0.19
+          name: clearml-mongo
+          volumeMounts:
+            - mountPath: /data/db
+              name: mongo-data
+            - mountPath: /data/configdb
+              name: mongo-config
+      restartPolicy: Always
+      volumes:
+        - name: mongo-data
+          persistentVolumeClaim:
+            claimName: mongo-data
+        - name: mongo-config
+          persistentVolumeClaim:
+            claimName: mongo-config

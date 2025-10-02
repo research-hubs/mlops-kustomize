@@ -1,0 +1,79 @@
+# Cloudflare Tunnel - Kustomize Makefile
+# Usage:
+#   make deploy ENV=development
+#   make delete ENV=production
+#   make status ENV=development
+
+ENV ?= development
+
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := cloudflare-tunnel
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-cloudflare-tunnel
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-cloudflare-tunnel
+endif
+
+.POD_NAME := $(shell kubectl -n $(NAMESPACE) get pods -l app.kubernetes.io/name=cloudflare-tunnel -o jsonpath='{.items[0].metadata.name}' 2> NUL)
+
+.PHONY: help deploy delete status build diff logs tunnel-status restart
+
+help:
+	@echo "Cloudflare Tunnel"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | logs | tunnel-status | restart"
+
+build:
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy:
+	@echo "Applying Cloudflare Tunnel for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+	@echo "Deployment complete!"
+
+delete:
+	@echo "Deleting Cloudflare Tunnel for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+	@echo "Removing namespace $(NAMESPACE)"
+	-@kubectl delete namespace $(NAMESPACE) --ignore-not-found=true
+
+status:
+	@echo "Namespace: $(NAMESPACE)"
+	-@kubectl get deploy,sts,ds,po,svc,configmap -n $(NAMESPACE) || true
+
+diff:
+	-@kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+restart:
+	@echo "Restarting Cloudflare Tunnel deployments in $(NAMESPACE) (ENV=$(ENV))"
+	-@kubectl -n $(NAMESPACE) rollout restart deployment -l app.kubernetes.io/name=cloudflare-tunnel || true
+	@echo "Restart issued. Use 'make status ENV=$(ENV)' to monitor."
+
+logs:
+	@echo "Cloudflare Tunnel logs from namespace $(NAMESPACE):"
+	@if [ -n "$(.POD_NAME)" ]; then \
+		kubectl logs -n $(NAMESPACE) $(.POD_NAME) --tail=50; \
+	else \
+		echo "No pods found in namespace $(NAMESPACE)"; \
+	fi
+
+tunnel-status:
+	@echo "Tunnel status from namespace $(NAMESPACE):"
+	@if [ -n "$(.POD_NAME)" ]; then \
+		kubectl exec -n $(NAMESPACE) $(.POD_NAME) -- cloudflared tunnel info || echo "Tunnel not ready yet"; \
+	else \
+		echo "No pods found in namespace $(NAMESPACE)"; \
+	fi

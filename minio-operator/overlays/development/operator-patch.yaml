@@ -1,0 +1,8 @@
+# Dev-specific patch for operator (add labels as an example)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-operator
+  namespace: dev-minio-operator
+  labels:
+    environment: development

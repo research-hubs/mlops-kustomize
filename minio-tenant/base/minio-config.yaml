@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-config
+  namespace: minio-tenant
+  labels:
+    app.kubernetes.io/name: minio-tenant
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: minio-operator
+type: Opaque
+stringData:
+  # Root user credentials
+  accessKey: "minioadmin"
+  secretKey: "minioadmin"
+  # Environment configuration
+  config.env: |-
+    export MINIO_ROOT_USER=minioadmin
+    export MINIO_ROOT_PASSWORD=minioadmin

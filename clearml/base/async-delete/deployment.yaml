@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: C:\Users\MSI\scoop\apps\kompose\current\kompose.exe convert -f docker-compose.yml -o k8s/
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: async-delete
+  name: async-delete
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: async-delete
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: C:\Users\MSI\scoop\apps\kompose\current\kompose.exe convert -f docker-compose.yml -o k8s/
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: async-delete
+    spec:
+      containers:
+        - command:
+            - python3
+            - -m
+            - jobs.async_urls_delete
+            - --fileserver-host
+            - http://fileserver:8081
+          env:
+            - name: CLEARML_ELASTIC_SERVICE_HOST
+              value: elasticsearch
+            - name: CLEARML_ELASTIC_SERVICE_PORT
+              value: "9200"
+            - name: CLEARML_MONGODB_SERVICE_HOST
+              value: mongo
+            - name: CLEARML_MONGODB_SERVICE_PORT
+              value: "27017"
+            - name: CLEARML_REDIS_SERVICE_HOST
+              value: redis
+            - name: CLEARML_REDIS_SERVICE_PORT
+              value: "6379"
+            - name: CLEARML__services__async_urls_delete__fileserver__url_prefixes
+              value: "[]"
+            - name: PYTHONPATH
+              value: /opt/clearml/apiserver
+          image: clearml/server:latest
+          name: async-delete
+          volumeMounts:
+            - mountPath: /var/log/clearml
+              name: async-delete-logs
+            - mountPath: /opt/clearml/config
+              name: async-delete-config
+      restartPolicy: Always
+      volumes:
+        - name: async-delete-logs
+          persistentVolumeClaim:
+            claimName: async-delete-logs
+        - name: async-delete-config
+          persistentVolumeClaim:
+            claimName: async-delete-config

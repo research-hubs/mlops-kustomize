@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - pvc-logs.yaml
+  - pvc-config.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: clearml
+      app.kubernetes.io/name: async-delete
+      app.kubernetes.io/component: jobs

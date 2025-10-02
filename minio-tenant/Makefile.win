@@ -1,0 +1,81 @@
+# MinIO Tenant - Kustomize Makefile
+# Usage examples:
+#   make deploy ENV=development
+#   make status ENV=production
+#   make delete ENV=base
+
+# Environment selection: base | development | production
+ENV ?= development
+TENANT_NAME ?= minio
+
+# Validate ENV
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+# Resolve kustomize directory and namespace by ENV
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := minio-tenant
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-minio-tenant
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-minio-tenant
+endif
+
+.PHONY: help deploy delete status build diff pf-api pf-console restart
+
+help:
+	@echo "MinIO Tenant (Kustomize)"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)  TENANT_NAME=$(TENANT_NAME)"
+	@echo "Targets: deploy | delete | status | build | diff | pf-api | pf-console | restart"
+
+build: ## Render manifests
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy: ## Apply manifests for selected ENV
+	@echo "Applying MinIO Tenant for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+
+delete: ## Fully remove tenant resources and namespace (clean like fresh)
+	@echo "Deleting MinIO Tenant for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+	@echo "Deleting MinIO Tenant CRs"
+	-@kubectl delete tenant --all -n $(NAMESPACE) --ignore-not-found=true
+	@echo "Cleaning namespaced resources"
+	-@kubectl delete sts,deploy,svc,cm,job,cronjob,role,rolebinding,sa -n $(NAMESPACE) --ignore-not-found=true
+	@echo "Deleting PVCs"
+	-@kubectl delete pvc --all -n $(NAMESPACE) --ignore-not-found=true
+	@echo "Deleting config secret if present"
+	-@kubectl delete secret minio-config -n $(NAMESPACE) --ignore-not-found=true
+	@echo "Removing namespace $(NAMESPACE)"
+	-@kubectl delete namespace $(NAMESPACE) --ignore-not-found=true
+
+status: ## Show resources in target namespace
+	@echo "Namespace: $(NAMESPACE)"
+	-@kubectl get tenants -n $(NAMESPACE) || true
+	-@kubectl get deploy,sts,ds,po,svc,configmap -n $(NAMESPACE) || true
+
+diff: ## Show diff against live cluster
+	-@kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+pf-api: ## Port-forward S3 API to localhost:9000
+	@echo "Port-forwarding $(TENANT_NAME) API in $(NAMESPACE) -> http://localhost:9000"
+	kubectl -n $(NAMESPACE) port-forward svc/$(TENANT_NAME)-hl 9000:9000
+
+pf-console: ## Port-forward Console UI to https://localhost:9001
+	@echo "Port-forwarding $(TENANT_NAME) Console in $(NAMESPACE) -> https://localhost:9001"
+	kubectl -n $(NAMESPACE) port-forward svc/$(TENANT_NAME)-console 9001:9443
+
+restart:
+	@echo "Restarting MinIO Tenant deployments in $(NAMESPACE) (ENV=$(ENV))"
+	-@kubectl -n $(NAMESPACE) rollout restart deployment -l v1.min.io/tenant=$(TENANT_NAME) || true
+	@echo "Restart issued. Use 'make status ENV=$(ENV)' to monitor."

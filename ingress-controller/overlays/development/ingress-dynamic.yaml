@@ -1,0 +1,50 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress-dynamic
+  namespace: dev-ingress-controller
+spec:
+  entryPoints:
+    - websecure
+  tls: {}
+  routes:
+    - match: Host(`traefik.itdevops.id.vn`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: traefik
+          port: traefik
+          namespace: dev-ingress-controller
+    - match: Host(`minio-console.itdevops.id.vn`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: minio-console
+          port: 9443
+          scheme: https
+          namespace: dev-minio-tenant
+          serversTransport: dev-ingress-controller-insecure-skip-verify@kubernetescrd
+    - match: Host(`minio.itdevops.id.vn`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: minio
+          port: 443
+          scheme: https
+          namespace: dev-minio-tenant
+          serversTransport: dev-ingress-controller-insecure-skip-verify@kubernetescrd
+    - match: Host(`keycloak.itdevops.id.vn`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: keycloak
+          port: 8080
+          namespace: dev-keycloak
+    - match: Host(`clearml.itdevops.id.vn`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: webserver
+          port: 8080
+          namespace: dev-clearml
+    - match: Host(`api-clearml.itdevops.id.vn`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: apiserver
+          port: 8008
+          namespace: dev-clearml

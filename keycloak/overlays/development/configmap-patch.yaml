@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-config
+data:
+  KC_HOSTNAME: https://keycloak.itdevops.id.vn
+  KC_HOSTNAME_ADMIN: https://keycloak.itdevops.id.vn
+  KC_HOSTNAME_STRICT_HTTPS: "true"

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: agent-services
+  name: agent-services
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: agent-services
+  template:
+    metadata:
+      labels:
+        io.kompose.service: agent-services
+    spec:
+      containers:
+        - command:
+            - bash
+            - -c
+            - curl --retry 10 --retry-delay 10 --retry-connrefused 'http://apiserver:8008/debug.ping' && clearml-agent daemon --queue ${CLEARML_AGENT_QUEUE} --create-queue
+          env:
+            - name: CLEARML_CONFIG_FILE
+              value: /root/.clearml/clearml.conf
+            # Remove S3 env overrides, rely solely on clearml.conf
+            - name: AZURE_STORAGE_ACCOUNT
+            - name: AZURE_STORAGE_KEY
+            - name: CLEARML_AGENT_DEFAULT_BASE_DOCKER
+              value: ubuntu:18.04
+            - name: CLEARML_AGENT_DOCKER_HOST_MOUNT
+              value: /opt/clearml/agent:/root/.clearml
+            - name: CLEARML_AGENT_FORCE_CPU
+              value: "yes"
+            - name: CLEARML_AGENT_GIT_PASS
+            - name: CLEARML_AGENT_GIT_USER
+            - name: CLEARML_AGENT_SKIP_DOCKER
+              value: "yes"
+            - name: CLEARML_AGENT_UPDATE_VERSION
+              value: ">=0.17.0"
+            - name: CLEARML_HOST_IP
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+            - name: CLEARML_AGENT_QUEUE
+              value: default
+            - name: SHUTDOWN_IF_NO_ACCESS_KEY
+              value: "1"
+          image: clearml/clearml-agent-services:latest
+          name: clearml-agent-services
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /root/.clearml
+              name: agent-config
+            - mountPath: /root/.clearml/clearml.conf
+              name: clearml-config
+              subPath: clearml.conf
+      restartPolicy: Always
+      volumes:
+        - name: agent-config
+          persistentVolumeClaim:
+            claimName: agent-config
+        - name: clearml-config
+          configMap:
+            name: clearml-config

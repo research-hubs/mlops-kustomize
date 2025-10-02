@@ -1,0 +1,18 @@
+apiVersion: minio.min.io/v2
+kind: Tenant
+metadata:
+  name: minio
+spec:
+  pools:
+    - name: pool-0
+      servers: 4
+      volumesPerServer: 1
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: hostpath
+          resources:
+            requests:
+              storage: 1Gi
+

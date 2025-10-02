@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0
+          args:
+            - --http-address=0.0.0.0:4180
+            - --upstream=http://webserver:8080
+            - --cookie-secure=false
+            - --cookie-samesite=lax
+            - --cookie-expire=168h
+            - --cookie-refresh=1h
+            - --set-authorization-header=true
+            - --pass-access-token=true
+            - --provider=oidc
+            - --oidc-issuer-url=https://keycloak.example.com/realms/mlops
+            - --client-id=clearml
+            - --client-secret=REPLACE_WITH_CLIENT_SECRET
+            - --email-domain=*
+            - --redirect-url=https://clearml.example.com/oauth2/callback
+          ports:
+            - containerPort: 4180
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

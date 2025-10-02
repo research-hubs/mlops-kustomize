@@ -1,0 +1,66 @@
+# Traefik Ingress Controller - Kustomize Makefile (Unix/Linux/macOS)
+# Usage:
+#   make deploy ENV=development
+#   make delete ENV=production
+#   make status ENV=development
+
+ENV ?= development
+
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := ingress-controller
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-ingress-controller
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-ingress-controller
+endif
+
+POD_NAME := $(shell kubectl -n $(NAMESPACE) get pods -l app.kubernetes.io/name=traefik -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+
+.PHONY: help deploy delete status build diff pf-dashboard restart
+
+help:
+	@echo "Traefik Ingress Controller"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | pf-dashboard | restart"
+
+build:
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy:
+	@echo "Applying Traefik for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+
+delete:
+	@echo "Deleting Traefik for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+	@echo "Removing namespace $(NAMESPACE)"
+	-kubectl delete namespace $(NAMESPACE) --ignore-not-found=true
+
+status:
+	@echo "Namespace: $(NAMESPACE)"
+	-kubectl get deploy,ds,svc,ingressroute,crd,sts,po,configmap -n $(NAMESPACE) || true
+
+diff:
+	-kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+restart:
+	@echo "Restarting Traefik deployments in $(NAMESPACE) (ENV=$(ENV))"
+	-kubectl -n $(NAMESPACE) rollout restart deployment -l app.kubernetes.io/name=traefik || true
+	@echo "Restart issued. Use 'make status ENV=$(ENV)' to monitor."
+
+pf-dashboard:
+	@echo "Port-forwarding Traefik dashboard from namespace $(NAMESPACE) to http://localhost:8080"
+	kubectl -n $(NAMESPACE) port-forward svc/traefik 8080:8080

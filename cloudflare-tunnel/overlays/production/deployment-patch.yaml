@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prod-cloudflare-tunnel
+spec:
+  template:
+    spec:
+      containers:
+        - name: cloudflare-tunnel
+          volumeMounts:
+            - name: origin-cert
+              mountPath: /etc/cloudflared/certs
+              readOnly: true
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: origin-cert
+          secret:
+            secretName: cloudflare-origin-cert

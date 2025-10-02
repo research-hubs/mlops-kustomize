@@ -1,0 +1,63 @@
+{
+  "AUTH": {
+    "AUTH__LOGIN_OK": "Đăng nhập thành công",
+    "AUTH__LOGOUT_OK": "Đăng xuất thành công",
+    "AUTH__REGISTER_OK": "Đăng ký thành công",
+    "AUTH__SEND_OTP_OK": "Gửi mã OTP thành công",
+    "AUTH__VERIFY_OTP_OK": "Xác minh mã OTP thành công",
+    "AUTH__RESET_PASSWORD_OK": "Đặt lại mật khẩu thành công",
+    "LOGIN_BAD_REQUEST": "Yêu cầu đăng nhập không hợp lệ",
+    "DECRYPT_DATA_BAD_REQUEST": "Dữ liệu giải mã không hợp lệ",
+    "TOKEN_INVALID_BAD_REQUEST": "Token không hợp lệ",
+    "TOKEN_EXPIRED_UNAUTHORIZED": "Token đã hết hạn",
+    "USER_INACTIVE_UNAUTHORIZED": "Người dùng không hoạt động"
+  },
+  "VALIDATE": {
+    "FIELD_REQUIRED_BAD_REQUEST": "Trường {field_name} là bắt buộc",
+    "FIELD_MIN_LENGTH_BAD_REQUEST": "Trường {field_name} phải có độ dài tối thiểu",
+    "FIELD_MAX_LENGTH_BAD_REQUEST": "Trường {field_name} vượt quá độ dài tối đa",
+    "FIELD_GREATER_THAN_BAD_REQUEST": "Trường {field_name} phải lớn hơn giá trị cho phép",
+    "FIELD_GREATER_THAN_OR_EQUAL_BAD_REQUEST": "Trường {field_name} phải lớn hơn hoặc bằng giá trị cho phép",
+    "FIELD_LESS_THAN_BAD_REQUEST": "Trường {field_name} phải nhỏ hơn giá trị cho phép",
+    "FIELD_LESS_THAN_OR_EQUAL_BAD_REQUEST": "Trường {field_name} phải nhỏ hơn hoặc bằng giá trị cho phép",
+    "FIELD_MULTIPLE_OF_BAD_REQUEST": "Trường {field_name} phải là bội số của giá trị cho phép",
+    "FIELD_ENUM_BAD_REQUEST": "Trường {field_name} có giá trị không hợp lệ",
+    "FIELD_START_WITH_BAD_REQUEST": "Trường {field_name} phải bắt đầu bằng giá trị cho phép",
+    "FIELD_END_WITH_BAD_REQUEST": "Trường {field_name} phải kết thúc bằng giá trị cho phép",
+    "FIELD_NOT_CONTAIN_BAD_REQUEST": "Trường {field_name} không được chứa giá trị không hợp lệ",
+    "FIELD_MATCH_REGEX_BAD_REQUEST": "Trường {field_name} không khớp với định dạng yêu cầu",
+    "FIELD_EMAIL_BAD_REQUEST": "Trường {field_name} không phải email hợp lệ",
+    "FIELD_VIETNAMESE_PHONE_BAD_REQUEST": "Trường {field_name} không phải số điện thoại Việt Nam hợp lệ",
+    "FIELD_POSITIVE_BAD_REQUEST": "Trường {field_name} phải là số dương",
+    "FIELD_IN_RANGE_BAD_REQUEST": "Trường {field_name} nằm ngoài phạm vi cho phép",
+    "FIELD_UUID_BAD_REQUEST": "Trường {field_name} không phải UUID hợp lệ",
+    "FIELD_NOT_EMPTY_BAD_REQUEST": "Trường {field_name} không được để trống",
+    "FIELD_BEFORE_DATE_BAD_REQUEST": "Trường {field_name} phải là ngày trước ngày quy định",
+    "FIELD_AFTER_DATE_BAD_REQUEST": "Trường {field_name} phải là ngày sau ngày quy định",
+    "FIELD_IN_FUTURE_BAD_REQUEST": "Trường {field_name} phải là ngày trong tương lai",
+    "FIELD_IN_PAST_BAD_REQUEST": "Trường {field_name} phải là ngày trong quá khứ"
+  },
+  "PAGINATE": {
+    "FIELD_MIN_VALUE_BAD_REQUEST": "Trường {field_name} có giá trị nhỏ hơn giá trị tối thiểu"
+  },
+  "OPA": {
+    "METHOD_NOT_ALLOWED": "Phương thức không được phép: {reasons}"
+  },
+  "BASE_REPO": {
+    "OBJECT_COUNT_MISMATCH_BAD_REQUEST": "Số lượng {model_name} không khớp",
+    "RELATIONSHIP_BAD_REQUEST": "Mối quan hệ {relationship_name} không hợp lệ",
+    "MODEL_ALREADY_EXISTS_BAD_REQUEST": "{model_name} đã tồn tại",
+    "FIELD_NOT_FOUND": "Không tìm thấy trường {field_name}",
+    "MODEL_NOT_FOUND": "Không tìm thấy {model_name}"
+  },
+  "COMMON": {
+    "OK": "Thành công",
+    "BAD_REQUEST": "Yêu cầu không hợp lệ",
+    "FORBIDDEN": "Không có quyền truy cập",
+    "INVALID_URL_FORBIDDEN": "URL không hợp lệ",
+    "NOT_FOUND": "Không tìm thấy",
+    "METHOD_NOT_ALLOWED": "Phương thức không được phép",
+    "TOO_MANY_REQUESTS": "Quá nhiều yêu cầu",
+    "INTERNAL_SERVER_ERROR": "Lỗi máy chủ nội bộ"
+  }
+}

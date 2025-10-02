@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: elasticsearch
+  name: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: elasticsearch
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: C:\Users\MSI\scoop\apps\kompose\current\kompose.exe convert -f docker-compose.yml -o k8s/
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: elasticsearch
+    spec:
+      containers:
+        - env:
+            - name: bootstrap.memory_lock
+              value: "true"
+            - name: cluster.name
+              value: clearml
+            - name: cluster.routing.allocation.disk.watermark.flood_stage
+              value: 500mb
+            - name: cluster.routing.allocation.disk.watermark.high
+              value: 500mb
+            - name: cluster.routing.allocation.disk.watermark.low
+              value: 500mb
+            - name: cluster.routing.allocation.node_initial_primaries_recoveries
+              value: "500"
+            - name: discovery.type
+              value: single-node
+            - name: http.compression_level
+              value: "7"
+            - name: node.name
+              value: clearml
+            - name: reindex.remote.whitelist
+              value: "'*.*'"
+            - name: xpack.security.enabled
+              value: "false"
+          image: elasticsearch:8.17.0
+          name: clearml-elastic
+          volumeMounts:
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-data
+            - mountPath: /usr/share/elasticsearch/logs
+              name: elasticsearch-logs
+      restartPolicy: Always
+      volumes:
+        - name: elasticsearch-data
+          persistentVolumeClaim:
+            claimName: elasticsearch-data
+        - name: elasticsearch-logs
+          persistentVolumeClaim:
+            claimName: elasticsearch-logs

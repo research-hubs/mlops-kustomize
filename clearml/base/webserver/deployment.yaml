@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webserver
+  labels:
+    io.kompose.service: webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: webserver
+  template:
+    metadata:
+      labels:
+        io.kompose.service: webserver
+    spec:
+      containers:
+        - args:
+            - webserver
+          image: clearml/server:latest
+          name: clearml-webserver
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: CLEARML_API_HOST
+              value: "http://apiserver:8008"
+            - name: CLEARML_FILES_HOST
+              value: "http://fileserver:8081"
+            - name: CLEARML_WEB_HOST
+              value: "http://webserver:8080"
+      restartPolicy: Always

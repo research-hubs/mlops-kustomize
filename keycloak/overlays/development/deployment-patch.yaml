@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: keycloak
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "500m"
+          livenessProbe:
+            initialDelaySeconds: 60
+          readinessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 20

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: apiserver
+  name: apiserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: apiserver
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        io.kompose.service: apiserver
+    spec:
+      containers:
+        - args:
+            - apiserver
+          env:
+            - name: REDIS_SERVICE_HOST
+              value: "redis"
+            - name: REDIS_SERVICE_PORT
+              value: "6379"
+            - name: ELASTIC_SERVICE_HOST
+              value: "elasticsearch"
+            - name: ELASTIC_SERVICE_PORT
+              value: "9200"
+            - name: MONGODB_SERVICE_HOST
+              value: "mongo"
+            - name: MONGODB_SERVICE_PORT
+              value: "27017"
+            - name: CLEARML_SERVER_DEPLOYMENT_TYPE
+              value: k8s
+            # Default fileserver configuration
+            - name: CLEARML_FILES_HOST
+              value: "http://fileserver:8081"
+
+          image: clearml/server:latest
+          name: clearml-apiserver
+          ports:
+            - containerPort: 8008
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/log/clearml
+              name: apiserver-logs
+            - mountPath: /opt/clearml/config
+              name: apiserver-config
+      restartPolicy: Always
+      volumes:
+        - name: apiserver-logs
+          persistentVolumeClaim:
+            claimName: apiserver-logs
+        - name: apiserver-config
+          persistentVolumeClaim:
+            claimName: apiserver-config

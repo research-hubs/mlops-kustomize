@@ -1,0 +1,63 @@
+# Auth Gateway - Kustomize Makefile (Unix/Linux/macOS)
+# Usage:
+#   make deploy ENV=development
+#   make delete ENV=production
+#   make status ENV=development
+
+ENV ?= development
+
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := auth-gateway
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-clearml
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-clearml
+endif
+
+.PHONY: help deploy delete status build diff restart logs
+
+help:
+	@echo "Auth Gateway"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | restart | logs"
+
+build:
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy:
+	@echo "Applying Auth Gateway for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+	@echo "Deployment complete!"
+
+delete:
+	@echo "Deleting Auth Gateway for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+
+status:
+	@echo "Namespace: $(NAMESPACE)"
+	-@kubectl get deploy,sts,ds,po,svc,configmap -n $(NAMESPACE) || true
+
+diff:
+	-@kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+restart:
+	@echo "Restarting Auth Gateway deployments in $(NAMESPACE) (ENV=$(ENV))"
+	-@kubectl -n $(NAMESPACE) rollout restart deployment -l app.kubernetes.io/name=auth-gateway || true
+	@echo "Restart commands issued for all deployments. Use 'make status ENV=$(ENV)' to monitor."
+
+logs:
+	@echo "Tailing Auth Gateway logs in $(NAMESPACE) (ENV=$(ENV))"
+	-@kubectl -n $(NAMESPACE) logs -l app.kubernetes.io/name=auth-gateway -f --tail=200 || true

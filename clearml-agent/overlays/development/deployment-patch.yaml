@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-services
+spec:
+  template:
+    spec:
+      containers:
+        - name: clearml-agent-services
+          env:
+            - name: CLEARML_FILES_HOST
+              value: "s3://minio.dev-minio-tenant.svc.cluster.local:443/clearml"
+            - name: CLEARML_WEB_HOST
+              value: http://webserver:8080
+            - name: CLEARML_API_HOST
+              value: http://apiserver:8008
+            - name: CLEARML_API_ACCESS_KEY
+              value: YIU06YOCRBIBQYX75MMOF8L637PHM7
+            - name: CLEARML_API_SECRET_KEY
+              value: "QWmVX_qgmt8EJfXPJDeQ8HEG3VrL1Id7jIDiCFWC1tFqXqeKujBXIMqNVk2M4B7-IVE"

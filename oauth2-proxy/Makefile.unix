@@ -1,0 +1,69 @@
+# oauth2-proxy - Kustomize Makefile (Unix/Linux/macOS)
+# Usage examples:
+#   make deploy ENV=development
+#   make status ENV=production
+#   make delete ENV=base
+
+# Environment selection: base | development | production
+ENV ?= development
+
+# Validate ENV
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+# Resolve kustomize directory and namespace by ENV
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := oauth2-proxy
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-oauth2-proxy
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-oauth2-proxy
+endif
+
+.PHONY: help deploy delete status build diff logs pf restart
+
+help:
+	@echo "oauth2-proxy (Kustomize)"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | logs | pf | restart"
+
+build: ## Render manifests
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy: ## Apply manifests for selected ENV
+	@echo "Applying oauth2-proxy for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+
+delete: ## Remove resources and namespace
+	@echo "Deleting oauth2-proxy for ENV=$(ENV)"
+	-kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+	-kubectl delete deploy,svc,cm,role,rolebinding,sa -n $(NAMESPACE) --ignore-not-found=true
+	-kubectl delete namespace $(NAMESPACE) --ignore-not-found=true
+
+status: ## Show resources in target namespace
+	@echo "Namespace: $(NAMESPACE)"
+	-kubectl get deploy,sts,ds,po,svc,configmap -n $(NAMESPACE) || true
+
+diff: ## Show diff against live cluster
+	-kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+logs: ## Tail oauth2-proxy logs
+	-kubectl -n $(NAMESPACE) logs deploy/oauth2-proxy -f --tail=200 || true
+
+pf: ## Port-forward oauth2-proxy to http://localhost:4180
+	@echo "Port-forward oauth2-proxy in $(NAMESPACE) -> http://localhost:4180"
+	kubectl -n $(NAMESPACE) port-forward deploy/oauth2-proxy 4180:4180
+
+restart: ## Restart oauth2-proxy deployment
+	@echo "Restarting oauth2-proxy deployment in namespace $(NAMESPACE) (ENV=$(ENV))"
+	-kubectl -n $(NAMESPACE) rollout restart deployment/oauth2-proxy || true
+	@echo "Restart command issued. Use 'make status ENV=$(ENV)' to monitor."

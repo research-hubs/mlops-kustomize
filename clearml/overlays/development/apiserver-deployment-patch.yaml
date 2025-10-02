@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apiserver
+spec:
+  template:
+    spec:
+      containers:
+        - name: clearml-apiserver
+          env:
+            - name: CLEARML_CONFIG_FILE
+              value: /opt/clearml/config/apiserver.conf
+          volumeMounts:
+            - mountPath: /opt/clearml/config/apiserver.conf
+              name: apiserver-config-map
+              subPath: apiserver.conf
+      volumes:
+        - name: apiserver-config-map
+          configMap:
+            name: apiserver-config-map

@@ -1,0 +1,67 @@
+# ClearML Agent - Kustomize Makefile
+# Usage:
+#   make deploy ENV=development
+#   make delete ENV=production
+#   make status ENV=development
+
+ENV ?= development
+
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := clearml
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-clearml
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-clearml
+endif
+
+.POD_NAME := $(shell kubectl -n $(NAMESPACE) get pods -l io.kompose.service=agent-services -o jsonpath='{.items[0].metadata.name}' 2> NUL)
+
+.PHONY: help deploy delete status build diff logs restart
+
+help:
+	@echo "ClearML Agent"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | logs | restart"
+
+build:
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy:
+	@echo "Applying ClearML Agent for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+	@echo "Deployment complete!"
+
+delete:
+	@echo "Deleting ClearML Agent for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+
+status:
+	@echo "Namespace: $(NAMESPACE)"
+	-@kubectl get deploy,sts,ds,po,svc,configmap -n $(NAMESPACE) || true
+
+diff:
+	-@kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+logs:
+	@echo "ClearML Agent logs from namespace $(NAMESPACE):"
+	-@kubectl logs -n $(NAMESPACE) -l io.kompose.service=agent-services --tail=100 --all-containers=true || echo "No pods found in namespace $(NAMESPACE) with label io.kompose.service=agent-services"
+
+restart:
+	@echo "Restarting ClearML Agent deployments in $(NAMESPACE) (ENV=$(ENV))"
+	-@kubectl -n $(NAMESPACE) rollout restart deployment -l io.kompose.service=agent-services || true
+	@echo "Restart issued. Use 'make status ENV=$(ENV)' to monitor."
+
+

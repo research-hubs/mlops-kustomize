@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-gateway
+spec:
+  template:
+    spec:
+      containers:
+        - name: auth-gateway
+          env:
+            - name: CLEARML_WEBSERVER_INTERNAL_URL
+              value: "http://webserver.dev-clearml.svc.cluster.local:8080"
+            - name: CLEARML_WEBSERVER_EXTERNAL_URL
+              value: "https://clearml.itdevops.id.vn"
+            - name: COOKIE_DOMAIN
+              value: ".itdevops.id.vn"
+            - name: OAUTH2_PROXY_BASIC_AUTH_PASSWORD
+              value: "gateway-basic-pass"

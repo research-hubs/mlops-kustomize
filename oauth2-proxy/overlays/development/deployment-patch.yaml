@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+spec:
+  template:
+    spec:
+      containers:
+        - name: oauth2-proxy
+          args:
+            - --http-address=0.0.0.0:4180
+            - --upstream=http://webserver.dev-clearml.svc.cluster.local:8080
+            - --provider=oidc
+            - --oidc-issuer-url=https://keycloak.itdevops.id.vn/realms/mlops
+            - --client-id=clearml
+            - --client-secret=yFGD9MgbD6OBeesoPHxzI9XZPnUsQhEt
+            - --redirect-url=https://clearml.itdevops.id.vn/oauth2/callback
+            - --scope=openid email profile
+            - --email-domain=*
+            - --user-id-claim=email
+            - --prefer-email-to-user=true
+            - --insecure-oidc-allow-unverified-email=true
+            - --show-debug-on-error=true
+            - --request-logging=true
+            - --auth-logging=true
+            - --cookie-secret=7Tn8c4j7LdGH3R3LGhQ53CMYKhncuFzPzswJ3FdUH9s=
+            - --cookie-secure=false
+            - --cookie-samesite=lax
+            - --cookie-expire=168h
+            - --cookie-refresh=1h
+            - --cookie-name=_oauth2_proxy
+            - --session-store-type=cookie
+            - --cookie-domain=.itdevops.id.vn
+            - --whitelist-domain=.itdevops.id.vn
+            - --set-authorization-header=true
+            - --pass-access-token=true
+            - --pass-user-headers=true
+            - --pass-host-header=true
+            - --silence-ping-logging=true
+            - --reverse-proxy=true

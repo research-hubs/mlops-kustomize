@@ -1,0 +1,54 @@
+---
+# Source: tenant/templates/checks.yaml
+# If an existing secret is used, do not set access-key and secret-key explicitly
+# (note that we allow the default settings in values.yaml)
+
+# If configuration.name is set and not the same as configSecret.name,
+# then we should raise an error and abort
+---
+# Source: tenant/templates/tenant.yaml
+apiVersion: minio.min.io/v2
+kind: Tenant
+metadata:
+  name: minio
+  ## Optionally pass labels to be applied to the statefulset pods
+  labels:
+    app: minio
+spec:
+  image: "minio/minio:RELEASE.2024-01-16T16-07-38Z"
+  imagePullPolicy: IfNotPresent
+  ## Secret with default environment variable configurations
+  configuration:
+    name: minio-config
+  poolsMetadata:
+    annotations: {}
+    labels: {}
+  pools:
+    - servers: 4
+      name: pool-0
+      volumesPerServer: 1
+      volumeClaimTemplate:
+        metadata:
+          name: data
+        spec:
+          storageClassName: hostpath
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+      resources:
+        limits:
+          cpu: "1"
+          memory: 1Gi
+        requests:
+          cpu: 250m
+          memory: 512Mi
+  mountPath: /export
+  subPath: /data
+  requestAutoCert: true
+  features:
+    bucketDNS: false
+    enableSFTP: false
+  podManagementPolicy: Parallel
+  prometheusOperator: false

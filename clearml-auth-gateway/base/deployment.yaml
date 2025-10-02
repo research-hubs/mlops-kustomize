@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-gateway
+  labels:
+    app.kubernetes.io/name: auth-gateway
+    app.kubernetes.io/component: auth-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auth-gateway
+        app.kubernetes.io/component: auth-gateway
+    spec:
+      containers:
+        - name: auth-gateway
+          image: python:3.11-slim
+          command:
+            [
+              "sh",
+              "-c",
+              "pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000",
+            ]
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: CLEARML_WEBSERVER_INTERNAL_URL
+              value: "http://webserver:8080"
+            - name: CLEARML_WEBSERVER_EXTERNAL_URL
+              value: "https://webserver.example.com"
+            - name: COOKIE_DOMAIN
+              value: ".example.com"
+            - name: OAUTH2_PROXY_BASIC_AUTH_PASSWORD
+              value: "gateway-basic-pass"
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+          workingDir: /app
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: app-code
+          configMap:
+            name: auth-gateway-code

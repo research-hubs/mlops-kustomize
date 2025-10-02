@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-services
+spec:
+  template:
+    spec:
+      containers:
+        - name: clearml-agent-services
+          env:
+            - name: CLEARML_WEB_HOST
+              value: https://clearml.itdevops.id.vn
+            - name: CLEARML_API_HOST
+              value: https://api-clearml.itdevops.id.vn
+            - name: CLEARML_API_ACCESS_KEY
+              value: MYY1MSYJ7NKQNCF7R1BHL1ZCH0BT93
+            - name: CLEARML_API_SECRET_KEY
+              value: z_zMC1JJzcmjGAV4JIfMmLITv3Geb7-dgIrBKFkxwTcUamwsagApA3VWZJMa19Fws2M

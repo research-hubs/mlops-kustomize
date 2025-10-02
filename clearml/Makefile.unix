@@ -1,0 +1,63 @@
+# ClearML Stack - Kustomize Makefile (Unix/Linux/macOS)
+# Usage:
+#   make deploy ENV=development
+#   make delete ENV=production
+#   make status ENV=development
+
+ENV ?= development
+
+VALID_ENVS := base development production
+ifeq (,$(filter $(ENV),$(VALID_ENVS)))
+  $(error Invalid ENV '$(ENV)'. Valid: $(VALID_ENVS))
+endif
+
+ifeq ($(ENV),base)
+  KUSTOMIZE_DIR := base
+  NAMESPACE := clearml
+endif
+ifeq ($(ENV),development)
+  KUSTOMIZE_DIR := overlays/development
+  NAMESPACE := dev-clearml
+endif
+ifeq ($(ENV),production)
+  KUSTOMIZE_DIR := overlays/production
+  NAMESPACE := prod-clearml
+endif
+
+.PHONY: help deploy delete status build diff restart
+
+help:
+	@echo "ClearML Stack"
+	@echo "Usage: make <target> ENV={base|development|production}"
+	@echo "ENV=$(ENV)  KUSTOMIZE_DIR=$(KUSTOMIZE_DIR)  NAMESPACE=$(NAMESPACE)"
+	@echo "Targets: deploy | delete | status | build | diff | restart"
+	@echo "- restart: restart all deployments in the namespace"
+
+build:
+	kubectl kustomize $(KUSTOMIZE_DIR)
+
+deploy:
+	@echo "Applying ClearML for ENV=$(ENV)"
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -k $(KUSTOMIZE_DIR)
+	@echo "Deployment complete!"
+
+delete:
+	@echo "Deleting ClearML for ENV=$(ENV)"
+	@echo "Deleting kustomized resources first"
+	kubectl delete -k $(KUSTOMIZE_DIR) --ignore-not-found=true || true
+	@echo "Removing namespace $(NAMESPACE)"
+	-kubectl delete namespace $(NAMESPACE) --ignore-not-found=true
+
+status:
+	@echo "Namespace: $(NAMESPACE)"
+	-kubectl get deploy,sts,ds,po,svc,configmap,secret,pvc -n $(NAMESPACE) || true
+
+diff:
+	-kubectl diff -k $(KUSTOMIZE_DIR) || true
+
+# Restart all deployments in the selected namespace
+restart:
+	@echo "Restarting ALL deployments in namespace $(NAMESPACE) (ENV=$(ENV))"
+	-kubectl -n $(NAMESPACE) rollout restart deployment -l app.kubernetes.io/part-of=clearml || true
+	@echo "Restart commands issued for all deployments. Use 'make status ENV=$(ENV)' to monitor."

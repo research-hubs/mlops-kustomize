@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fileserver
+  labels:
+    io.kompose.service: fileserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: fileserver
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        io.kompose.service: fileserver
+    spec:
+      containers:
+        - args:
+            - fileserver
+          image: clearml/server:latest
+          name: clearml-fileserver
+          ports:
+            - containerPort: 8081
+              protocol: TCP
+          env:
+            - name: CLEARML_API_HOST
+              value: "http://apiserver:8008"
+            - name: CLEARML_FILES_HOST
+              value: "http://fileserver:8081"
+            - name: CLEARML__fileserver__delete__allow_batch
+              value: "true"
+          volumeMounts:
+            - mountPath: /var/log/clearml
+              name: fileserver-logs
+      volumes:
+        - name: fileserver-logs
+          persistentVolumeClaim:
+            claimName: fileserver-logs
